@@ -8,8 +8,8 @@ JUMPS
 
 
 .data
-    help        db 'This program prints all symbol differences & their positions between two files', 13,10
-    error_file  db 'File couldn't be opened for reading'
+    help        db 'This program prints all symbol differences & their positions between two files', 13,10, '$'
+    error_file  db 'File couldn't be opened for reading', 13, 10, '$'
 .code
     
 start:

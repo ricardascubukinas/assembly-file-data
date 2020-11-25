@@ -1,0 +1,6 @@
+*.EXE
+*.OBJ
+*.MAP
+mycode.asm
+pvz.asm
+*.txt
