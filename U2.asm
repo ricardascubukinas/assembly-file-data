@@ -88,7 +88,6 @@ read_source_file:
     cmp byte ptr ds:[source_file], '$'
     jne file_check
     jmp close_file
-    ; test
 
 file_check:
     cmp byte ptr ds:[source_file], '$'
