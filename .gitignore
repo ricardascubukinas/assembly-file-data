@@ -1,8 +1,5 @@
 *.EXE
 *.OBJ
 *.MAP
-REZ.TXT
-antra.asm
-mycode.asm
-pvz.asm
+*.TXT
 *.txt
