@@ -1,11 +1,14 @@
 ;; Author Ričardas Čubukinas
-;;
+;; This program calculates statistical data about provided text files
+;; and prints it out if there is no input or the input is /?
+;; there is a help message with usage instructions
 
 .model small
 .stack 100h
 CONST_READ_BUFFER_SIZE = 20
 CONST_WRITE_BUFFER_SIZE = 20
 
+;; Auto generate inverted condition jmp on far jumps
 JUMPS
 
 
@@ -23,6 +26,7 @@ JUMPS
     msg_words_count         db "Words in file: $"
     msg_newline             db 13, 10, "$"
 
+    filename_length         dw 0
     buffer_count            dw 0
     dest_file               db "result.txt", 0 
     dest_file_handle        dw ?
@@ -41,11 +45,14 @@ JUMPS
 start:
     mov ax, @data
     mov es, ax
+    ;; Using es in order to use stosb function
 
+    ;; Command arguments are saved in es segment starting with 81h byte
     mov si, 81h
 
     call    skip_spaces
 
+    ;; Checking for any input or /? and providing the help message if needed
     mov al, byte ptr ds:[si]
     cmp al, 13
     je help
@@ -54,21 +61,25 @@ start:
     cmp ax, 3F2Fh
     je help
 
+    ;; saving the source file name
     lea di, source_file
     call    read_filename
 
     push ds si
-    
+
+    ;; ds is free for now so let's open data in it 
     mov ax, @data
     mov ds, ax
 
 open_file_write:
+    ;; opening the destination file for writing, option 1 = write, no attributes
     mov dx, offset dest_file
     mov cx, 0
     mov ah, 3Ch
     mov al, 1
     int 21h
 
+    ;; if file failed to open
     jc error_destination
     mov dest_file_handle, ax
     
@@ -84,12 +95,14 @@ read_source_file:
 
     mov ax, @data
     mov ds, ax
-    
+    ;; did we read all the files
     cmp byte ptr ds:[source_file], '$'
     jne file_check
+
     jmp close_file
 
 file_check:
+    ;; is the file still
     cmp byte ptr ds:[source_file], '$'
     jne open_file_read
 
@@ -159,6 +172,14 @@ check_buffer:
 write_result:
     mov ah, 40h
     mov bx, dest_file_handle
+    mov cx, filename_length
+    lea dx, source_file
+    int 21h
+
+    call    print_newline
+
+    mov ah, 40h
+    mov bx, dest_file_handle
     mov cx, 17
     lea dx, msg_symbol_count
     int 21h   
@@ -195,6 +216,7 @@ write_result:
 
     mov ax, word_count
     call    convert_print
+    call    print_newline
     call    print_newline
 
     call    reset_variables
@@ -253,6 +275,7 @@ error_source:
     int 21h
 
 close_file:
+    pop ds si
     mov ah, 3Eh
     mov bx, dest_file_handle
     int 21h
@@ -276,23 +299,30 @@ skip_spaces ENDP
 
 read_filename PROC near
     push	ax
+
 	call	skip_spaces
-    read_filename_start:
-    	cmp	byte ptr ds:[si], 13
-	    je	read_filename_end
-	    cmp	byte ptr ds:[si], ' '
-	    jne	read_filename_next
+read_filename_start:
+ 	cmp	byte ptr ds:[si], 13
+    je	read_filename_end
+    cmp	byte ptr ds:[si], ' '
+    jne	read_filename_next
 
-    read_filename_end:
-    	mov	al, '$'
-    	stosb
-    	pop	ax
-    	ret
+read_filename_end:
+   	mov	al, '$'
+   	stosb
+   	pop	ax
+   	ret
 
-    read_filename_next:
-    	lodsb   
-    	stosb
-    	jmp read_filename_start
+read_filename_next:
+    push ax ds
+    mov ax, @data
+    mov ds, ax
+    inc filename_length
+    pop ds ax
+
+   	lodsb   
+   	stosb
+   	jmp read_filename_start
 
 read_filename ENDP
 
@@ -305,7 +335,6 @@ check_symbol PROC near
 
         cmp bl, 7Ah
         jg check_symbol_end
-
         inc lowercase_count
         jmp check_symbol_end
 
@@ -336,7 +365,6 @@ check_symbol ENDP
 convert_print PROC near
     
    xor cx,cx  
-   
    convert: 
         sub dx, dx
         div divisor
@@ -380,6 +408,7 @@ reset_variables PROC near
     mov uppercase_count, 0
     mov word_count, 0
     mov buffer_count, 0
+    mov filename_length, 0
     ret
 
 reset_variables ENDP
