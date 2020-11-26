@@ -21,8 +21,9 @@ JUMPS
     msg_uppercase_count     db "Uppercase letters in file: $"
     msg_lowercase_count     db "Lowercase letters in file: $"
     msg_words_count         db "Words in file: $"
-    msg_newline             db 13, 10, '$'
+    msg_newline             db 13, 10, "$"
 
+    buffer_count            dw 0
     dest_file               db "result.txt", 0 
     dest_file_handle        dw ?
     source_file             db 12 dup (0)
@@ -32,8 +33,8 @@ JUMPS
     symbol_count            dw 0
     lowercase_count         dw 0
     uppercase_count         dw 0
-    word_count              dw 1
-    divisor                 dw 0Ah
+    word_count              dw 0
+    divisor                 dw 10
  
 .code
     
@@ -63,13 +64,14 @@ start:
 
 open_file_write:
     mov dx, offset dest_file
+    mov cx, 0
     mov ah, 3Ch
     mov al, 1
     int 21h
 
     jc error_destination
     mov dest_file_handle, ax
-
+    
     jmp file_check
 
 read_source_file:
@@ -120,14 +122,18 @@ read_data:
     int 21h
     jmp read_source_file
 
+
 set_options:
     mov si, offset read_buffer
     mov bx, dest_file_handle
 
     cmp source_file_handle, 0
     jne save_count
+    cmp byte ptr ds:[si], 13
+    je close_file
 
 save_count:
+    call    check_buffer_count
     mov dx, symbol_count
     add dx, ax
     mov symbol_count, dx
@@ -146,48 +152,55 @@ buffer_loop:
 
 check_buffer:
     pop ax
-    CMP ax, CONST_READ_BUFFER_SIZE
+    cmp ax, CONST_READ_BUFFER_SIZE
     je read_data
     jmp write_result
 
 write_result:
     mov ah, 40h
     mov bx, dest_file_handle
-    mov cx, 11h
+    mov cx, 17
     lea dx, msg_symbol_count
     int 21h   
 
     mov ax, symbol_count
-    call convert_print
-    call print_newline
+    call    convert_print
+    call    print_newline
 
     mov ah, 40h
     mov bx, dest_file_handle
-    mov cx, 1B
+    mov cx, 27
     lea dx, msg_lowercase_count
+    int 21h
 
     mov ax, lowercase_count
-    call convert_print
-    call print_newline
+    call    convert_print
+    call    print_newline
 
     mov ah, 40h
     mov bx, dest_file_handle
-    mov cx, 1B
+    mov cx, 27
     lea dx, msg_uppercase_count
+    int 21h
 
     mov ax, uppercase_count
-    call convert_print
-    call print_newline
+    call    convert_print
+    call    print_newline
 
     mov ah, 40h
     mov bx, dest_file_handle
-    mov cx, 0Fh
-    lea dx, word_count
+    mov cx, 15
+    lea dx, msg_words_count
+    int 21h
 
     mov ax, word_count
-    call convert_print
+    call    convert_print
+    call    print_newline
+
+    call    reset_variables
 
     jmp read_source_file
+
 help:
     mov ax, @data
     mov ds, ax
@@ -353,11 +366,33 @@ convert_print ENDP
 print_newline PROC near
     mov ah, 40h
     mov bx, dest_file_handle
-    mov cx, 1
+    mov cx, 2
     lea dx, msg_newline
     int 21h
     ret
 
 print_newline ENDP
+
+
+reset_variables PROC near
+    mov symbol_count, 0
+    mov lowercase_count, 0
+    mov uppercase_count, 0
+    mov word_count, 0
+    mov buffer_count, 0
+    ret
+
+reset_variables ENDP
+
+check_buffer_count PROC near
+    cmp buffer_count, 0
+    jne check_buffer_count_end
+    inc word_count
+
+    check_buffer_count_end:
+        inc buffer_count
+        ret
+
+check_buffer_count ENDP
 
 end start
