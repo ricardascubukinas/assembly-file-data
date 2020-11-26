@@ -13,8 +13,10 @@ JUMPS
 
 
 .data
-    error_file_destination  db "File couldn't be opened for reading", 13, 10, '$'
-    error_file_source       db "File couldn't be opened for writing", 13, 10, '$'
+    error_file_destination  db "File couldn't be opened for writing", 13, 10, '$'
+    error_file_source       db "File couldn't be opened for reading", 13, 10, '$'
+    error_empty_file        db "The file: $"
+    error_emtpy_file2       db ", was empty", 13, 10, "$"
     msg_help                db "NAME",13,10,9, "U2 - Second assigment 1st variant", 13,10,13,10, '$'
     msg_help2               db "SYNOPSIS",13,10,9, "U2 [/?] FILENAME [FILENAME2]...",13,10,13,10, '$'
     msg_help3               db "DESCRIPTION",13,10,9, "This program counts the number of symbols, uppercase letters",13,10, '$'
@@ -61,7 +63,7 @@ start:
     cmp ax, 3F2Fh
     je help
 
-    ;; saving the source file name
+    ;; Saving the source file name
     lea di, source_file
     call    read_filename
 
@@ -72,14 +74,14 @@ start:
     mov ds, ax
 
 open_file_write:
-    ;; opening the destination file for writing, option 1 = write, no attributes
+    ;; Opening the destination file for writing, option 1 = write, no attributes
     mov dx, offset dest_file
     mov cx, 0
     mov ah, 3Ch
     mov al, 1
     int 21h
 
-    ;; if file failed to open
+    ;; If file failed to open
     jc error_destination
     mov dest_file_handle, ax
     
@@ -95,14 +97,14 @@ read_source_file:
 
     mov ax, @data
     mov ds, ax
-    ;; did we read all the files
+    ;; Did we read all the files
     cmp byte ptr ds:[source_file], '$'
     jne file_check
 
     jmp close_file
 
 file_check:
-    ;; is the file still
+    ;; Can we really open the file?
     cmp byte ptr ds:[source_file], '$'
     jne open_file_read
 
@@ -111,6 +113,7 @@ file_check:
 
 
 open_file_read:
+    ;; Open the file
     mov dx, offset source_file
     mov ah, 3Dh
     mov al, 0
@@ -133,12 +136,14 @@ read_data:
     mov bx, source_file_handle
     mov ah, 3Eh
     int 21h
+    call    empty_file
     jmp read_source_file
 
 
 set_options:
     mov si, offset read_buffer
     mov bx, dest_file_handle
+
 
     cmp source_file_handle, 0
     jne save_count
@@ -151,7 +156,6 @@ save_count:
     add dx, ax
     mov symbol_count, dx
     push ax
-
     mov cx, ax
 
 buffer_loop:
@@ -219,7 +223,7 @@ write_result:
     call    print_newline
     call    print_newline
 
-    call    reset_variables
+    call reset_variables
 
     jmp read_source_file
 
@@ -423,5 +427,30 @@ check_buffer_count PROC near
         ret
 
 check_buffer_count ENDP
+
+empty_file PROC near
+    mov ah, 40h
+    mov bx, dest_file_handle
+    lea dx, error_empty_file
+    mov cx, 10
+    int 21h
+
+    mov ah, 40h
+    mov bx, dest_file_handle
+    lea dx, source_file
+    mov cx, filename_length
+    int 21h
+
+    mov ah, 40h
+    mov bx, dest_file_handle
+    lea dx, error_emtpy_file2
+    mov cx, 13
+    int 21h
+
+    mov filename_length, 0
+    call    print_newline
+    ret
+
+empty_file ENDP
 
 end start
